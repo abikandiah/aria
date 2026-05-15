@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "files": {
+      "command": "smb-mcp",
+      "transport": "stdio",
+      "env": {
+        "SMB_NAS_HOST": "samba-nas",
+        "SMB_NAS_USERNAME": "",
+        "SMB_NAS_PASSWORD": ""
+      }
+    }
+  },
+  "profiles": {
+    "default": {
+      "model": "claude-sonnet-4-6",
+      "servers": ["files"],
+      "readonly": false,
+      "description": "Full access to file shares"
+    },
+    "browse": {
+      "model": "claude-haiku-4-5-20251001",
+      "servers": ["files"],
+      "readonly": true,
+      "description": "Fast read-only browsing — cheaper model, no write tools"
+    }
+  }
+}

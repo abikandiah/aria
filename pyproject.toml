@@ -3,20 +3,22 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "smb-agent"
+name = "aria"
 version = "0.1.0"
-description = "LangGraph agent for SMB/CIFS file share assistance"
+description = "General-purpose AI task agent with MCP tool integrations"
 requires-python = ">=3.10"
 dependencies = [
     "langgraph>=1.2.0",
+    "langchain>=0.3.0",
     "langchain-anthropic>=0.3.0",
+    "langchain-openai>=0.3.0",
     "langchain-mcp-adapters>=0.2.2",
     "anthropic>=0.102.0",
     "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]
-smb-agent = "smb_agent.cli:main"
+aria = "aria.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/smb_agent"]
+packages = ["src/aria"]
