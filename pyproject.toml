@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "smb-agent"
+version = "0.1.0"
+description = "LangGraph agent for SMB/CIFS file share assistance"
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=1.2.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-mcp-adapters>=0.2.2",
+    "anthropic>=0.102.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+smb-agent = "smb_agent.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/smb_agent"]
