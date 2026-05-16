@@ -1,0 +1,33 @@
+[Unit]
+Description=Aria AI task agent
+Documentation=https://github.com/your-org/aria
+After=network-online.target sssd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aria
+Group=aria
+
+# Config and API key — override in /etc/systemd/system/aria.service.d/override.conf
+# or set ARIA_CONFIG in the environment file below.
+EnvironmentFile=-/etc/aria/aria.env
+
+ExecStart=/usr/local/bin/aria --role default
+Restart=on-failure
+RestartSec=5s
+
+# Harden the service process
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/var/lib/aria
+
+# stdout/stderr go to journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aria
+
+[Install]
+WantedBy=multi-user.target

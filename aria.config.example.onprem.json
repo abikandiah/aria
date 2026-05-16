@@ -1,0 +1,48 @@
+{
+  "mcpServers": {
+    "finance-files": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas/finance"],
+      "env": {}
+    },
+    "hr-files": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas/hr"],
+      "env": {}
+    },
+    "shared-files": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas/shared"],
+      "env": {}
+    }
+  },
+  "roles": {
+    "finance": {
+      "model": "claude-sonnet-4-6",
+      "servers": ["finance-files"],
+      "readonly": false,
+      "description": "Full access to the Finance share"
+    },
+    "hr": {
+      "model": "claude-sonnet-4-6",
+      "servers": ["hr-files"],
+      "readonly": false,
+      "description": "Full access to the HR share"
+    },
+    "staff": {
+      "model": "claude-haiku-4-5-20251001",
+      "servers": ["shared-files"],
+      "readonly": true,
+      "description": "Read-only access to the shared drive — cheaper model"
+    },
+    "default": {
+      "model": "claude-sonnet-4-6",
+      "servers": ["shared-files"],
+      "readonly": false,
+      "description": "Full access to the shared drive"
+    }
+  }
+}

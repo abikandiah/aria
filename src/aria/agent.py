@@ -25,6 +25,44 @@ summarise your findings clearly when done.\
 """
 
 
+def _resolve_env(env: dict[str, str | dict]) -> dict[str, str]:
+    """Resolve credential references in an MCP server env dict to plain strings.
+
+    Supported reference forms:
+      {"from": "keychain", "service": "aria-nas", "key": "password"}
+      {"from": "env", "var": "SMB_NAS_PASSWORD"}
+    Plain string values are passed through unchanged.
+    """
+    resolved: dict[str, str] = {}
+    for k, v in env.items():
+        if isinstance(v, str):
+            resolved[k] = v
+        elif isinstance(v, dict):
+            source = v.get("from")
+            if source == "keychain":
+                import keyring  # deferred: only needed when keychain refs are used
+                service, key = v["service"], v["key"]
+                secret = keyring.get_password(service, key)
+                if secret is None:
+                    raise ValueError(
+                        f"Credential not found in keychain: service={service!r}, key={key!r}"
+                    )
+                resolved[k] = secret
+            elif source == "env":
+                var = v["var"]
+                val = os.environ.get(var)
+                if val is None:
+                    raise ValueError(
+                        f"Credential env var not set: {var!r} (config key {k!r})"
+                    )
+                resolved[k] = val
+            else:
+                raise ValueError(f"Unknown credential source {source!r} for key {k!r}")
+        else:
+            raise ValueError(f"Invalid credential value type for key {k!r}: {type(v)}")
+    return resolved
+
+
 def make_mcp_client(servers: dict[str, McpServerConfig]) -> MultiServerMCPClient:
     """Build an MCP client from a dict of McpServerConfig objects."""
     return MultiServerMCPClient({
@@ -32,7 +70,7 @@ def make_mcp_client(servers: dict[str, McpServerConfig]) -> MultiServerMCPClient
             "command": cfg.command,
             "transport": cfg.transport,
             "args": cfg.args,
-            "env": {**os.environ, **cfg.env},
+            "env": {**os.environ, **_resolve_env(cfg.env)},
         }
         for name, cfg in servers.items()
     })

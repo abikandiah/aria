@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
@@ -17,7 +18,11 @@ _THREAD = {"configurable": {"thread_id": "session"}}
 # Tool names that mutate state — stripped from the pool when readonly=True.
 # Extend this set as new MCP servers are added.
 _WRITE_TOOLS: set[str] = {
+    # smb-mcp
     "smb_write_file", "smb_delete", "smb_move", "smb_copy", "smb_mkdir",
+    # mcp-server-filesystem
+    "write_file", "edit_file", "create_directory", "move_file",
+    # messaging / email
     "send_email", "send_message", "send_whatsapp",
 }
 
@@ -28,13 +33,17 @@ def _parse_args() -> argparse.Namespace:
         description="Aria — AI task agent with MCP tool integrations",
     )
     p.add_argument(
-        "--profile", default="default",
-        help="Profile name from aria.config.json (default: 'default')",
+        "--role", default=None,
+        help="Role name from aria.config.json (default: 'default')",
+    )
+    p.add_argument(
+        "--profile", default=None, dest="profile",
+        help=argparse.SUPPRESS,  # deprecated alias for --role
     )
     p.add_argument(
         "--model",
         help=(
-            "Model name, overrides the profile setting. "
+            "Model name, overrides the role setting. "
             "Examples: claude-sonnet-4-6  openai:gpt-4o  llama3.1:8b"
         ),
     )
@@ -54,20 +63,25 @@ def _fmt_input(data: dict) -> str:
 
 
 async def _run(args: argparse.Namespace) -> None:
+    if args.profile and not args.role:
+        print("Warning: --profile is deprecated, use --role instead", file=sys.stderr)
+
+    role_name = args.role or args.profile or "default"
+
     config = load_config(args.config)
 
-    profile = config.profiles.get(args.profile)
-    if profile is None:
-        available = ", ".join(config.profiles) or "(none)"
-        raise SystemExit(f"Unknown profile '{args.profile}'. Available: {available}")
+    role = config.roles.get(role_name)
+    if role is None:
+        available = ", ".join(config.roles) or "(none)"
+        raise SystemExit(f"Unknown role '{role_name}'. Available: {available}")
 
-    model = create_model(args.model or profile.model)
+    model = create_model(args.model or role.model)
 
-    server_names = profile.servers or list(config.mcp_servers)
+    server_names = role.servers or list(config.mcp_servers)
     servers = {n: config.mcp_servers[n] for n in server_names if n in config.mcp_servers}
     if not servers:
         raise SystemExit(
-            f"No MCP servers available for profile '{args.profile}'. "
+            f"No MCP servers available for role '{role_name}'. "
             "Check aria.config.json."
         )
 
@@ -77,13 +91,13 @@ async def _run(args: argparse.Namespace) -> None:
         all_tools = await client.get_tools()
         tools = (
             [t for t in all_tools if t.name not in _WRITE_TOOLS]
-            if profile.readonly
+            if role.readonly
             else all_tools
         )
 
         agent = await make_agent(model, tools)
 
-        tag = f"[{args.profile}]" + (" [readonly]" if profile.readonly else "")
+        tag = f"[{role_name}]" + (" [readonly]" if role.readonly else "")
         print(f"Aria {tag}  (type 'exit' to quit)\n")
 
         while True:

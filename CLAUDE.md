@@ -14,11 +14,11 @@ Adding a new capability = adding an MCP server entry in `aria.config.json`. No c
 src/aria/
   agent.py    — create_react_agent wrapper; accepts BaseChatModel + tool list
   models.py   — create_model(name) factory; two-path provider detection
-  config.py   — load aria.config.json; McpServerConfig, Profile, AriaConfig dataclasses
-  cli.py      — argparse REPL; --profile / --model flags, streaming, readonly filtering
+  config.py   — load aria.config.json; McpServerConfig, Role, AriaConfig dataclasses
+  cli.py      — argparse REPL; --role / --model flags, streaming, readonly filtering
 plans/
   architecture.md   — full design doc: model layer, MCP config format, roadmap
-aria.config.example.json   — example config with smb-mcp and default/browse profiles
+aria.config.example.json   — example config with smb-mcp, mcp-server-filesystem, and roles
 .env.example               — all supported env vars
 pyproject.toml
 ```
@@ -34,8 +34,8 @@ cp aria.config.example.json aria.config.json
 ## Running
 
 ```bash
-aria                           # default profile
-aria --profile browse          # read-only, cheaper model
+aria                           # default role
+aria --role browse             # read-only, cheaper model
 aria --model openai:gpt-4o     # override model for this session
 ```
 
@@ -65,18 +65,32 @@ The agent receives a `BaseChatModel` — it knows nothing about the underlying p
 ```json
 {
   "mcpServers": {
-    "files": {
+    "smb-files": {
       "command": "smb-mcp",
       "transport": "stdio",
-      "env": { "SMB_NAS_HOST": "...", "SMB_NAS_USERNAME": "...", "SMB_NAS_PASSWORD": "..." }
+      "env": {
+        "SMB_NAS_HOST": "samba-nas",
+        "SMB_NAS_USERNAME": "myuser",
+        "SMB_NAS_PASSWORD": { "from": "keychain", "service": "aria-nas", "key": "password" }
+      }
+    },
+    "local-files": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas"]
     }
   },
-  "profiles": {
-    "default": { "model": "claude-sonnet-4-6", "servers": ["files"], "readonly": false },
-    "browse":  { "model": "claude-haiku-4-5-20251001", "servers": ["files"], "readonly": true }
+  "roles": {
+    "default": { "model": "claude-sonnet-4-6", "servers": ["smb-files"], "readonly": false },
+    "browse":  { "model": "claude-haiku-4-5-20251001", "servers": ["smb-files"], "readonly": true },
+    "local":   { "model": "claude-sonnet-4-6", "servers": ["local-files"], "readonly": false }
   }
 }
 ```
+
+**Credential references** — `env` values can be plain strings or reference objects:
+- `{ "from": "keychain", "service": "aria-nas", "key": "password" }` — resolved via `keyring`
+- `{ "from": "env", "var": "SMB_NAS_PASSWORD" }` — resolved from an env var at startup
 
 `readonly: true` removes write/delete/send tools from the pool **before the model sees them** — a code-level guardrail, not a prompt instruction. The write tool names are listed in `_WRITE_TOOLS` in `cli.py`; extend that set when adding new MCP servers with mutating tools.
 
@@ -94,8 +108,8 @@ Full roadmap with architectural decisions is in `plans/roadmap.md`. Read that fi
 when starting any new phase. Summary:
 
 - **Phase 1** (complete): core REPL, provider-agnostic model factory, profile system, smb-mcp integration
-- **Phase 2**: credential foundation — `keyring` integration, credential reference syntax in config, rename profiles → roles
-- **Phase 3**: on-prem deployment — domain-joined server guides, Tailscale, systemd service
+- **Phase 2** (complete): credential foundation — `keyring` integration, credential reference syntax in config, renamed profiles → roles
+- **Phase 3** (complete): on-prem deployment — domain-joined server guides, Tailscale, systemd service
 - **Phase 4**: cloud foundation — Docker, `langgraph serve`, SQLite session persistence
 - **Phase 5**: identity & multi-user — OAuth (M365/Google), role mapping, per-session credential injection
 - **Phase 6**: web interface for non-technical users

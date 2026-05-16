@@ -93,34 +93,33 @@ streaming, readonly tool filtering.
 
 ---
 
-### Phase 2 — Credential Foundation
+### Phase 2 — Credential Foundation ✅ Complete
 *Scope: Aria codebase only. No deployment changes.*
 
-- [ ] Rename `profiles` → `roles` in `config.py`, `cli.py`, `aria.config.example.json`,
+- [x] Rename `profiles` → `roles` in `config.py`, `cli.py`, `aria.config.example.json`,
       `CLAUDE.md`, and `plans/`
-- [ ] Credential reference syntax: extend `McpServerConfig.env` to accept
+- [x] Credential reference syntax: extend `McpServerConfig.env` to accept
       `dict` values (references) alongside plain strings
-- [ ] Credential resolver in `make_mcp_client`: expand references via `keyring` and
+- [x] Credential resolver in `make_mcp_client`: expand references via `keyring` and
       env var lookup before spawning MCP subprocesses
-- [ ] Add `keyring` to `pyproject.toml` dependencies
-- [ ] Config examples: add `mcp-server-filesystem` alongside `smb-mcp` to
+- [x] Add `keyring` to `pyproject.toml` dependencies
+- [x] Config examples: add `mcp-server-filesystem` alongside `smb-mcp` to
       `aria.config.example.json` showing both paths
-- [ ] Update `_WRITE_TOOLS` in `cli.py` as needed for `mcp-server-filesystem` tool names
-- [ ] `--role` flag replaces `--profile` in CLI (keep `--profile` as deprecated alias)
+- [x] Update `_WRITE_TOOLS` in `cli.py` as needed for `mcp-server-filesystem` tool names
+- [x] `--role` flag replaces `--profile` in CLI (keep `--profile` as deprecated alias)
 
 ---
 
-### Phase 3 — On-Prem Deployment
+### Phase 3 — On-Prem Deployment ✅ Complete
 *Scope: deployment docs + config examples. Minimal code.*
 
-- [ ] Deployment guide: domain-joined Linux server setup
+- [x] Deployment guide: domain-joined Linux server setup → `docs/deploy-linux.md`
       (realm/sssd AD join, CIFS mount, systemd service)
-- [ ] Deployment guide: domain-joined Windows Server setup
+- [x] Deployment guide: domain-joined Windows Server setup → `docs/deploy-windows.md`
       (mapped drives, Windows service via NSSM or Task Scheduler)
-- [ ] Tailscale setup guide: NAS → server connectivity for non-domain cases
-- [ ] `aria.config.example.json`: on-prem role examples
-      (finance/hr/staff with mcp-server-filesystem paths)
-- [ ] Systemd unit file for running Aria as a service
+- [x] Tailscale setup guide: NAS → server connectivity for non-domain cases → `docs/tailscale.md`
+- [x] On-prem config example with finance/hr/staff roles → `aria.config.example.onprem.json`
+- [x] Systemd unit file for running Aria as a service → `deploy/aria.service`
 
 ---
 

@@ -1,7 +1,7 @@
 """Load Aria configuration from aria.config.json.
 
 Config file format mirrors Claude Desktop's MCP server format so configs
-are portable between tools. Profiles layer model and permission settings
+are portable between tools. Roles layer model and permission settings
 on top of the server list.
 """
 from __future__ import annotations
@@ -17,11 +17,11 @@ class McpServerConfig:
     command: str
     transport: str = "stdio"
     args: list[str] = field(default_factory=list)
-    env: dict[str, str] = field(default_factory=dict)
+    env: dict[str, str | dict] = field(default_factory=dict)
 
 
 @dataclass
-class Profile:
+class Role:
     name: str
     model: str | None = None
     servers: list[str] = field(default_factory=list)
@@ -32,14 +32,14 @@ class Profile:
 @dataclass
 class AriaConfig:
     mcp_servers: dict[str, McpServerConfig]
-    profiles: dict[str, Profile]
+    roles: dict[str, Role]
 
 
 def load_config(path: str | None = None) -> AriaConfig:
     config_path = Path(path or os.getenv("ARIA_CONFIG", "aria.config.json"))
 
     if not config_path.exists():
-        return AriaConfig(mcp_servers={}, profiles={"default": Profile(name="default")})
+        return AriaConfig(mcp_servers={}, roles={"default": Role(name="default")})
 
     raw = json.loads(config_path.read_text())
 
@@ -53,18 +53,20 @@ def load_config(path: str | None = None) -> AriaConfig:
         for name, cfg in raw.get("mcpServers", {}).items()
     }
 
-    profiles: dict[str, Profile] = {
-        name: Profile(
+    # Support both "roles" (current) and "profiles" (legacy) config keys.
+    roles_raw = raw.get("roles") or raw.get("profiles") or {}
+    roles: dict[str, Role] = {
+        name: Role(
             name=name,
             model=p.get("model"),
             servers=p.get("servers", list(servers)),
             readonly=p.get("readonly", False),
             description=p.get("description", ""),
         )
-        for name, p in raw.get("profiles", {}).items()
+        for name, p in roles_raw.items()
     }
 
-    if "default" not in profiles:
-        profiles["default"] = Profile(name="default", servers=list(servers))
+    if "default" not in roles:
+        roles["default"] = Role(name="default", servers=list(servers))
 
-    return AriaConfig(mcp_servers=servers, profiles=profiles)
+    return AriaConfig(mcp_servers=servers, roles=roles)
