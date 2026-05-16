@@ -90,8 +90,14 @@ The agent receives a `BaseChatModel` — it knows nothing about the underlying p
 
 ## Phased Roadmap
 
+Full roadmap with architectural decisions is in `plans/roadmap.md`. Read that first
+when starting any new phase. Summary:
+
 - **Phase 1** (complete): core REPL, provider-agnostic model factory, profile system, smb-mcp integration
-- **Phase 2**: email MCP (evaluate mcp-gmail / mcp-outlook)
-- **Phase 3**: web search (Tavily/Brave/Exa) + messaging (Twilio/WhatsApp)
-- **Phase 4**: multi-agent routing supervisor (optional — OpenRouter may handle this)
-- **Phase 5**: persistent memory (SQLite/Redis replacing MemorySaver)
+- **Phase 2**: credential foundation — `keyring` integration, credential reference syntax in config, rename profiles → roles
+- **Phase 3**: on-prem deployment — domain-joined server guides, Tailscale, systemd service
+- **Phase 4**: cloud foundation — Docker, `langgraph serve`, SQLite session persistence
+- **Phase 5**: identity & multi-user — OAuth (M365/Google), role mapping, per-session credential injection
+- **Phase 6**: web interface for non-technical users
+- **Phase 7**: capability MCP servers — email, web search, messaging, remote MCP over HTTP/SSE
+- **Phase 8**: multi-agent routing, long-term memory, audit logging
