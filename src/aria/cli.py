@@ -10,21 +10,10 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 
 from .agent import make_agent, make_mcp_client
-from .config import load_config
+from .config import load_config, WRITE_TOOLS
 from .models import create_model
 
 _THREAD = {"configurable": {"thread_id": "session"}}
-
-# Tool names that mutate state — stripped from the pool when readonly=True.
-# Extend this set as new MCP servers are added.
-_WRITE_TOOLS: set[str] = {
-    # smb-mcp
-    "smb_write_file", "smb_delete", "smb_move", "smb_copy", "smb_mkdir",
-    # mcp-server-filesystem
-    "write_file", "edit_file", "create_directory", "move_file",
-    # messaging / email
-    "send_email", "send_message", "send_whatsapp",
-}
 
 
 def _parse_args() -> argparse.Namespace:
@@ -90,7 +79,7 @@ async def _run(args: argparse.Namespace) -> None:
     async with client:
         all_tools = await client.get_tools()
         tools = (
-            [t for t in all_tools if t.name not in _WRITE_TOOLS]
+            [t for t in all_tools if t.name not in WRITE_TOOLS]
             if role.readonly
             else all_tools
         )

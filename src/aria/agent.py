@@ -6,6 +6,7 @@ import os
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 
@@ -76,11 +77,15 @@ def make_mcp_client(servers: dict[str, McpServerConfig]) -> MultiServerMCPClient
     })
 
 
-async def make_agent(model: BaseChatModel, tools: list[BaseTool]):
-    """Create a ReAct agent with the given model and tool list."""
+async def make_agent(
+    model: BaseChatModel,
+    tools: list[BaseTool],
+    checkpointer: BaseCheckpointSaver | None = None,
+):
+    """Create a ReAct agent. Defaults to in-memory checkpointing when none is given."""
     return create_react_agent(
         model,
         tools,
         prompt=SYSTEM_PROMPT,
-        checkpointer=MemorySaver(),
+        checkpointer=checkpointer if checkpointer is not None else MemorySaver(),
     )

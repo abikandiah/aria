@@ -18,6 +18,13 @@ dependencies = [
     "keyring>=25.0.0",
 ]
 
+[project.optional-dependencies]
+serve = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+]
+
 [project.scripts]
 aria = "aria.cli:main"
 

@@ -123,18 +123,21 @@ streaming, readonly tool filtering.
 
 ---
 
-### Phase 4 — Cloud Foundation (Single Tenant)
+### Phase 4 — Cloud Foundation (Single Tenant) ✅ Complete
 *Scope: Docker, LangGraph serve, persistent storage.*
 
-- [ ] `Dockerfile` for Aria container
-- [ ] `docker-compose.yml`: Aria service + Tailscale sidecar
-- [ ] Switch from CLI REPL to `langgraph serve` for cloud mode
-      (keep CLI for local/on-prem — both modes supported)
-- [ ] Replace `MemorySaver` with SQLite-backed checkpointer
-      (`langgraph-checkpoint-sqlite`) for session persistence
-- [ ] `aria.config.example.cloud.json`: cloud role + credential reference examples
-- [ ] Secrets management: document env file vs Docker secrets vs secrets manager
-- [ ] Health check endpoint
+- [x] `Dockerfile` for Aria container (Python 3.12-slim + Node.js for npx MCP servers)
+- [x] `docker-compose.yml`: Aria service + Tailscale sidecar (shared network namespace)
+- [x] `src/aria/serve.py`: FastAPI service with SSE streaming and SQLite persistence
+      (replaces REPL for cloud mode; REPL kept for local/on-prem)
+- [x] `src/aria/graph.py`: LangGraph Platform graph entrypoint (`langgraph.json`)
+- [x] Replace `MemorySaver` with optional checkpointer in `make_agent`;
+      serve mode uses `AsyncSqliteSaver` from `langgraph-checkpoint-sqlite`
+- [x] `[serve]` optional extra in `pyproject.toml` (fastapi, uvicorn, sqlite checkpointer)
+- [x] `WRITE_TOOLS` moved from `cli.py` to `config.py` — shared by CLI and serve
+- [x] `aria.config.example.cloud.json`: Tailscale NAS + env-var credential references
+- [x] `docs/secrets.md`: .env / Docker secrets / AWS+GCP+Azure / OS keychain options
+- [x] `GET /health` endpoint in serve.py; Docker HEALTHCHECK in Dockerfile
 
 ---
 

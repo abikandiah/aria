@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "nas-files": {
+      "command": "smb-mcp",
+      "transport": "stdio",
+      "env": {
+        "SMB_NAS_HOST": "nas.tail12345.ts.net",
+        "SMB_NAS_USERNAME": { "from": "env", "var": "SMB_NAS_USERNAME" },
+        "SMB_NAS_PASSWORD": { "from": "env", "var": "SMB_NAS_PASSWORD" }
+      }
+    }
+  },
+  "roles": {
+    "default": {
+      "model": "claude-sonnet-4-6",
+      "servers": ["nas-files"],
+      "readonly": false,
+      "description": "Full access to NAS via Tailscale"
+    },
+    "readonly": {
+      "model": "claude-haiku-4-5-20251001",
+      "servers": ["nas-files"],
+      "readonly": true,
+      "description": "Read-only — for less trusted sessions or cheaper workloads"
+    }
+  }
+}

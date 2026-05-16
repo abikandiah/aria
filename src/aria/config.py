@@ -35,6 +35,18 @@ class AriaConfig:
     roles: dict[str, Role]
 
 
+# Tool names that mutate state; stripped from the pool when readonly=True.
+# Extend this set when adding new MCP servers with write/send tools.
+WRITE_TOOLS: frozenset[str] = frozenset({
+    # smb-mcp
+    "smb_write_file", "smb_delete", "smb_move", "smb_copy", "smb_mkdir",
+    # mcp-server-filesystem
+    "write_file", "edit_file", "create_directory", "move_file",
+    # messaging / email
+    "send_email", "send_message", "send_whatsapp",
+})
+
+
 def load_config(path: str | None = None) -> AriaConfig:
     config_path = Path(path or os.getenv("ARIA_CONFIG", "aria.config.json"))
 

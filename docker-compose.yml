@@ -1,0 +1,40 @@
+services:
+  aria:
+    build: .
+    # Shares Tailscale's network namespace so smb-mcp can reach the NAS via
+    # its Tailscale IP without any extra port mapping.
+    network_mode: "service:tailscale"
+    env_file: .env                              # ANTHROPIC_API_KEY, SMB_NAS_*, etc.
+    volumes:
+      - ./aria.config.json:/app/aria.config.json:ro
+      - aria-data:/app/data
+    depends_on:
+      tailscale:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: aria                              # device name on the Tailscale network
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY:-}              # generate at tailscale.com/admin/settings/keys
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    healthcheck:
+      test: ["CMD", "tailscale", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  aria-data:       # SQLite session database + any other persistent state
+  tailscale-state: # Tailscale node key — survives container restarts

@@ -14,12 +14,24 @@ Adding a new capability = adding an MCP server entry in `aria.config.json`. No c
 src/aria/
   agent.py    — create_react_agent wrapper; accepts BaseChatModel + tool list
   models.py   — create_model(name) factory; two-path provider detection
-  config.py   — load aria.config.json; McpServerConfig, Role, AriaConfig dataclasses
+  config.py   — load aria.config.json; McpServerConfig, Role, AriaConfig dataclasses + WRITE_TOOLS
   cli.py      — argparse REPL; --role / --model flags, streaming, readonly filtering
+  serve.py    — FastAPI service; /health + /threads/{id}/invoke + /threads/{id}/stream
+  graph.py    — LangGraph Platform graph entrypoint (used by langgraph.json)
 plans/
-  architecture.md   — full design doc: model layer, MCP config format, roadmap
-aria.config.example.json   — example config with smb-mcp, mcp-server-filesystem, and roles
-.env.example               — all supported env vars
+  architecture.md        — full design doc: model layer, MCP config format, roadmap
+docs/
+  deploy-linux.md        — domain-joined Linux server setup
+  deploy-windows.md      — domain-joined Windows Server setup
+  tailscale.md           — NAS connectivity via Tailscale
+  secrets.md             — secrets management options
+Dockerfile               — Python 3.12-slim + Node.js; runs uvicorn aria.serve:app
+docker-compose.yml       — Aria + Tailscale sidecar
+langgraph.json           — LangGraph Platform entrypoint
+aria.config.example.json             — SMB + local-filesystem example
+aria.config.example.onprem.json      — on-prem finance/hr/staff roles
+aria.config.example.cloud.json       — cloud Tailscale + env-var credentials
+.env.example             — all supported env vars
 pyproject.toml
 ```
 
@@ -33,10 +45,18 @@ cp aria.config.example.json aria.config.json
 
 ## Running
 
+**CLI (local / on-prem):**
 ```bash
 aria                           # default role
 aria --role browse             # read-only, cheaper model
 aria --model openai:gpt-4o     # override model for this session
+```
+
+**HTTP service (cloud):**
+```bash
+pip install -e ".[serve]"
+uvicorn aria.serve:app --reload        # development
+docker compose up                      # production (requires aria.config.json + .env)
 ```
 
 ## Model Configuration
@@ -96,11 +116,14 @@ The agent receives a `BaseChatModel` — it knows nothing about the underlying p
 
 ## Architecture Notes
 
-- **`agent.py`** is fully provider- and domain-agnostic. `make_agent(model, tools)` takes any `BaseChatModel` and any tool list. `MemorySaver` gives per-session conversation state.
-- **`make_mcp_client`** merges `os.environ` with per-server env overrides so MCP subprocesses inherit the parent environment.
-- **Streaming** uses `astream_events(version="v2")`. The CLI surfaces `on_tool_start` (tool name + inputs) and `on_chat_model_stream` (text tokens) events.
+- **`agent.py`** is fully provider- and domain-agnostic. `make_agent(model, tools, checkpointer=None)` takes any `BaseChatModel` and any tool list. Defaults to `MemorySaver`; pass `AsyncSqliteSaver` for persistent sessions.
+- **`make_mcp_client`** merges `os.environ` with per-server env overrides so MCP subprocesses inherit the parent environment. Credential references are resolved via `_resolve_env()`.
+- **`WRITE_TOOLS`** is defined in `config.py` — extend it there when adding new MCP servers with mutating tools. Both CLI and serve mode import it from there.
+- **Streaming** uses `astream_events(version="v2")`. CLI surfaces `on_tool_start` and `on_chat_model_stream`; serve mode forwards these as SSE events.
 - **`init_chat_model`** lives in `langchain` (not `langchain_core`). The `langchain>=0.3.0` dependency is required for the direct-provider path.
 - **`create_react_agent`** from `langgraph.prebuilt` is correct and not deprecated. Pylance may flag it as deprecated — this is a false positive (it confuses it with the old `langchain.agents` version).
+- **Serve mode** (`serve.py`) uses FastAPI with async lifespan to hold the MCP client and SQLite checkpointer open for the life of the process. `ARIA_ROLE` and `ARIA_DB_PATH` env vars control runtime behaviour.
+- **`graph.py`** exposes the agent for LangGraph Platform (`langgraph.json`). It uses `asyncio.run()` at import time — only works in a fresh event loop (standard for `langgraph serve` startup).
 
 ## Phased Roadmap
 
@@ -110,7 +133,7 @@ when starting any new phase. Summary:
 - **Phase 1** (complete): core REPL, provider-agnostic model factory, profile system, smb-mcp integration
 - **Phase 2** (complete): credential foundation — `keyring` integration, credential reference syntax in config, renamed profiles → roles
 - **Phase 3** (complete): on-prem deployment — domain-joined server guides, Tailscale, systemd service
-- **Phase 4**: cloud foundation — Docker, `langgraph serve`, SQLite session persistence
+- **Phase 4** (complete): cloud foundation — Docker, FastAPI serve mode, SQLite session persistence
 - **Phase 5**: identity & multi-user — OAuth (M365/Google), role mapping, per-session credential injection
 - **Phase 6**: web interface for non-technical users
 - **Phase 7**: capability MCP servers — email, web search, messaging, remote MCP over HTTP/SSE

@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "agent": "./src/aria/graph.py:graph"
+  },
+  "env": ".env"
+}
