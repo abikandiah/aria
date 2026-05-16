@@ -156,21 +156,26 @@ streaming, readonly tool filtering.
 ---
 
 ### Phase 6 — Web Interface
-*Scope: user-facing UI for non-technical employees.*
+*Scope: user-facing UI via LangGraph Studio (no custom frontend).*
 
-- [ ] Evaluate LangGraph's built-in UI vs lightweight custom frontend
-- [ ] WebSocket / SSE streaming to browser
-- [ ] Session history view (past conversations)
-- [ ] Role-aware UI (show/hide capabilities based on role)
-- [ ] Mobile-friendly
+- [x] Evaluate UI options: LangGraph Studio chosen over agent-chat-ui (requires Platform
+      API rewrite) and Chainlit (extra dependency). Studio is free, zero frontend code,
+      and `graph.py` + `langgraph.json` are already configured.
+- [x] Add `langgraph-cli[inmem]` to `[dev]` optional extras in `pyproject.toml`
+- [x] Document `langgraph dev` in CLAUDE.md alongside CLI and HTTP service modes
+- [ ] Test with real MCP servers connected (web search + Gmail)
+- [ ] Evaluate Studio for non-technical users; revisit Chainlit if Studio UX is insufficient
 
 ---
 
 ### Phase 7 — Capabilities (MCP Servers)
 *Scope: new MCP server integrations. Config + `_WRITE_TOOLS` updates only.*
 
-- [ ] Email: evaluate `mcp-gmail` / `mcp-outlook` — pick one, add to config example
-- [ ] Web search: evaluate Tavily / Brave / Exa MCPs
+- [x] Web search: `@modelcontextprotocol/server-brave-search` — added to all config
+      examples; added to `analyst` and `default` roles; `write_tools: []` (read-only)
+- [x] Email: `@gongrzhe/server-gmail-autoauth-mcp` — added to cloud + base config
+      examples; write_tools declared per-server; `_BUILTIN_WRITE_TOOLS` expanded
+- [x] `docs/capabilities.md`: setup guides for Brave Search and Gmail
 - [ ] Messaging: evaluate Twilio / WhatsApp Cloud API MCPs
 - [ ] Remote MCP over HTTP/SSE: evaluate running `smb-mcp` or `mcp-server-filesystem`
       as a network-accessible service on the business's LAN (Tailscale-secured),

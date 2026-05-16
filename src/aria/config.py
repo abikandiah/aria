@@ -45,8 +45,11 @@ _BUILTIN_WRITE_TOOLS: frozenset[str] = frozenset({
     "smb_write_file", "smb_delete", "smb_move", "smb_copy", "smb_mkdir",
     # mcp-server-filesystem
     "write_file", "edit_file", "create_directory", "move_file",
-    # messaging / email
-    "send_email", "send_message", "send_whatsapp",
+    # email (gmail and outlook MCP servers)
+    "send_email", "create_draft", "reply_to_email", "forward_email",
+    "delete_email", "trash_email", "move_email", "modify_labels",
+    # messaging
+    "send_message", "send_whatsapp",
 })
 
 

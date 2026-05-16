@@ -20,36 +20,54 @@
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas/shared"],
       "env": {},
       "write_tools": ["write_file", "edit_file", "create_directory", "move_file"]
+    },
+    "web-search-brave": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@brave/brave-search-mcp-server"],
+      "env": {
+        "BRAVE_API_KEY": { "from": "env", "var": "BRAVE_API_KEY" }
+      },
+      "write_tools": []
+    },
+    "web-search-tavily": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "tavily-mcp@latest"],
+      "env": {
+        "TAVILY_API_KEY": { "from": "env", "var": "TAVILY_API_KEY" }
+      },
+      "write_tools": []
     }
   },
   "roles": {
     "finance": {
       "model": "claude-sonnet-4-6",
-      "servers": ["finance-files"],
+      "servers": ["finance-files", "web-search-brave"],
       "readonly": false,
       "persona": "default",
-      "description": "Full access to the Finance share"
+      "description": "Full access to the Finance share + web search"
     },
     "hr": {
       "model": "claude-sonnet-4-6",
-      "servers": ["hr-files"],
+      "servers": ["hr-files", "web-search-brave"],
       "readonly": false,
       "persona": "default",
-      "description": "Full access to the HR share"
+      "description": "Full access to the HR share + web search"
     },
     "staff": {
       "model": "claude-haiku-4-5-20251001",
-      "servers": ["shared-files"],
+      "servers": ["shared-files", "web-search-brave"],
       "readonly": true,
       "persona": "browse",
-      "description": "Read-only access to the shared drive — cheaper model"
+      "description": "Read-only access to the shared drive + web search — cheaper model"
     },
     "default": {
       "model": "claude-sonnet-4-6",
-      "servers": ["shared-files"],
+      "servers": ["shared-files", "web-search-brave"],
       "readonly": false,
       "persona": "default",
-      "description": "Full access to the shared drive"
+      "description": "Full access to the shared drive + web search"
     }
   }
 }

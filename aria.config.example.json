@@ -16,29 +16,63 @@
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas"],
       "env": {},
       "write_tools": ["write_file", "edit_file", "create_directory", "move_file"]
+    },
+    "web-search-brave": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@brave/brave-search-mcp-server"],
+      "env": {
+        "BRAVE_API_KEY": { "from": "env", "var": "BRAVE_API_KEY" }
+      },
+      "write_tools": []
+    },
+    "web-search-tavily": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "tavily-mcp@latest"],
+      "env": {
+        "TAVILY_API_KEY": { "from": "env", "var": "TAVILY_API_KEY" }
+      },
+      "write_tools": []
+    },
+    "gmail": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@gongrzhe/server-gmail-autoauth-mcp"],
+      "env": {
+        "GMAIL_CREDENTIALS_PATH": { "from": "env", "var": "GMAIL_CREDENTIALS_PATH" }
+      },
+      "write_tools": ["send_email", "create_draft", "reply_to_email", "forward_email", "delete_email", "trash_email", "modify_labels"]
     }
   },
   "roles": {
     "default": {
       "model": "claude-sonnet-4-6",
-      "servers": ["smb-files"],
+      "servers": ["smb-files", "web-search-brave", "gmail"],
       "readonly": false,
       "persona": "default",
-      "description": "Full access to file shares via SMB"
+      "description": "Full access — files, web search, and email"
+    },
+    "analyst": {
+      "model": "claude-sonnet-4-6",
+      "servers": ["smb-files", "web-search-brave", "gmail"],
+      "readonly": true,
+      "persona": "analyst",
+      "description": "Research and synthesis — reads files, searches web, reads email. No writes."
     },
     "browse": {
       "model": "claude-haiku-4-5-20251001",
       "servers": ["smb-files"],
       "readonly": true,
       "persona": "browse",
-      "description": "Fast read-only browsing — cheaper model, no write tools"
+      "description": "Fast read-only file browsing — no web search, cheaper model"
     },
     "local": {
       "model": "claude-sonnet-4-6",
-      "servers": ["local-files"],
+      "servers": ["local-files", "web-search-brave"],
       "readonly": false,
       "persona": "default",
-      "description": "Access to OS-mounted shares (domain-joined server)"
+      "description": "OS-mounted shares + web search (domain-joined server)"
     }
   }
 }

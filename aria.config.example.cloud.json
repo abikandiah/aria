@@ -9,22 +9,56 @@
         "SMB_NAS_PASSWORD": { "from": "env", "var": "SMB_NAS_PASSWORD" }
       },
       "write_tools": ["smb_write_file", "smb_delete", "smb_move", "smb_copy", "smb_mkdir"]
+    },
+    "web-search-brave": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@brave/brave-search-mcp-server"],
+      "env": {
+        "BRAVE_API_KEY": { "from": "env", "var": "BRAVE_API_KEY" }
+      },
+      "write_tools": []
+    },
+    "web-search-tavily": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "tavily-mcp@latest"],
+      "env": {
+        "TAVILY_API_KEY": { "from": "env", "var": "TAVILY_API_KEY" }
+      },
+      "write_tools": []
+    },
+    "gmail": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@gongrzhe/server-gmail-autoauth-mcp"],
+      "env": {
+        "GMAIL_CREDENTIALS_PATH": { "from": "env", "var": "GMAIL_CREDENTIALS_PATH" }
+      },
+      "write_tools": ["send_email", "create_draft", "reply_to_email", "forward_email", "delete_email", "trash_email", "modify_labels"]
     }
   },
   "roles": {
     "default": {
       "model": "claude-sonnet-4-6",
-      "servers": ["nas-files"],
+      "servers": ["nas-files", "web-search-brave", "gmail"],
       "readonly": false,
       "persona": "default",
-      "description": "Full access to NAS via Tailscale"
+      "description": "Full access — NAS via Tailscale, web search, and email"
+    },
+    "analyst": {
+      "model": "claude-sonnet-4-6",
+      "servers": ["nas-files", "web-search-brave", "gmail"],
+      "readonly": true,
+      "persona": "analyst",
+      "description": "Research — reads files, searches web, reads email. No writes."
     },
     "readonly": {
       "model": "claude-haiku-4-5-20251001",
       "servers": ["nas-files"],
       "readonly": true,
       "persona": "browse",
-      "description": "Read-only — for less trusted sessions or cheaper workloads"
+      "description": "Read-only file browsing — cheaper model, no web search or email"
     }
   }
 }

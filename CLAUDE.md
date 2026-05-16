@@ -63,6 +63,12 @@ uvicorn aria.serve:app --reload        # development
 docker compose up                      # production (requires aria.config.json + .env)
 ```
 
+**Studio (web UI — LangGraph dev):**
+```bash
+pip install -e ".[dev]"
+langgraph dev                          # chat UI + graph visualiser at http://localhost:8123
+```
+
 ## Model Configuration
 
 Model selection is in `models.py`. Two paths are auto-detected at startup:
