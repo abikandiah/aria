@@ -32,7 +32,6 @@ def create_model(name: str | None = None) -> BaseChatModel:
         return ChatOpenAI(
             model=model_name,
             base_url=base_url,
-            api_key=os.getenv("OPENAI_API_KEY", "ollama"),
             max_tokens=_MAX_TOKENS,
         )
 

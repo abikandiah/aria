@@ -1,0 +1,17 @@
+# Local development override — no Tailscale required.
+#
+# Usage:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   docker compose up
+#
+# docker-compose.override.yml is gitignored and automatically merged
+# by Docker Compose when present. Do not commit it.
+#
+# The API will be reachable at http://localhost:8000.
+
+services:
+  aria:
+    network_mode: bridge
+    ports:
+      - "8000:8000"
+    depends_on: {}            # remove Tailscale dependency for local dev

@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 
@@ -18,7 +18,7 @@ managing files, searching the web, sending messages, and more — depending on \
 what's connected in this session.
 
 Work through tasks methodically. For file operations, start by listing \
-available profiles and testing the connection. For broad exploration, list \
+directories and testing the connection. For broad exploration, list \
 directories before reading files. Prefer targeted search over recursive listing.
 
 For complex or multi-step tasks, plan your approach before executing, then \
@@ -42,6 +42,11 @@ def _resolve_env(env: dict[str, str | dict]) -> dict[str, str]:
             source = v.get("from")
             if source == "keychain":
                 import keyring  # deferred: only needed when keychain refs are used
+                missing = [f for f in ("service", "key") if f not in v]
+                if missing:
+                    raise ValueError(
+                        f"Keychain credential ref for '{k}' is missing fields: {missing}"
+                    )
                 service, key = v["service"], v["key"]
                 secret = keyring.get_password(service, key)
                 if secret is None:
@@ -50,6 +55,10 @@ def _resolve_env(env: dict[str, str | dict]) -> dict[str, str]:
                     )
                 resolved[k] = secret
             elif source == "env":
+                if "var" not in v:
+                    raise ValueError(
+                        f"Env credential ref for '{k}' is missing the 'var' field"
+                    )
                 var = v["var"]
                 val = os.environ.get(var)
                 if val is None:
@@ -77,11 +86,11 @@ def make_mcp_client(servers: dict[str, McpServerConfig]) -> MultiServerMCPClient
     })
 
 
-async def make_agent(
+def make_agent(
     model: BaseChatModel,
     tools: list[BaseTool],
-    checkpointer: BaseCheckpointSaver | None = None,
-):
+    checkpointer: Any = None,  # BaseCheckpointSaver | AsyncBaseCheckpointSaver
+) -> Any:
     """Create a ReAct agent. Defaults to in-memory checkpointing when none is given."""
     return create_react_agent(
         model,

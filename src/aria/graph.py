@@ -13,6 +13,7 @@ which gives proper async lifespan management and SSE streaming.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import os
 
 from dotenv import load_dotenv
@@ -27,7 +28,13 @@ load_dotenv()
 async def _build():
     config = load_config()
     role_name = os.getenv("ARIA_ROLE", "default")
-    role = config.roles[role_name]
+    role = config.roles.get(role_name)
+    if role is None:
+        raise RuntimeError(
+            f"Unknown role '{role_name}'. Set ARIA_ROLE to one of: "
+            + ", ".join(config.roles)
+        )
+
     server_names = role.servers or list(config.mcp_servers)
     servers = {n: config.mcp_servers[n] for n in server_names if n in config.mcp_servers}
 
@@ -47,4 +54,15 @@ async def _build():
     return create_react_agent(model, tools, prompt=SYSTEM_PROMPT)
 
 
-graph = asyncio.run(_build())
+def _run_async(coro):
+    """Run a coroutine whether or not an event loop is already running."""
+    try:
+        asyncio.get_running_loop()
+        # Already inside an event loop — run in a separate thread to avoid nesting.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+
+graph = _run_async(_build())

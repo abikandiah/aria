@@ -5,19 +5,23 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
+# Non-root user for security hardening.
+RUN adduser --system --no-create-home --group aria
+
 WORKDIR /app
 
-# Install Python package and serve extras.
+# Install Python package and serve extras (non-editable for production).
 COPY pyproject.toml ./
 COPY src/ src/
-RUN pip install --no-cache-dir -e ".[serve]"
+RUN pip install --no-cache-dir ".[serve]"
 
-# Session database lives here; mount a volume to persist across restarts.
-RUN mkdir -p /app/data
+# Session database lives here; mount a named volume to persist across restarts.
+RUN mkdir -p /app/data && chown -R aria:aria /app
 
-# aria.config.json is expected to be bind-mounted at runtime (see docker-compose.yml).
 ENV ARIA_CONFIG=/app/aria.config.json
 ENV ARIA_DB_PATH=/app/data/aria.db
+
+USER aria
 
 EXPOSE 8000
 

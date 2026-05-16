@@ -3,6 +3,7 @@ services:
     build: .
     # Shares Tailscale's network namespace so smb-mcp can reach the NAS via
     # its Tailscale IP without any extra port mapping.
+    # For local development without Tailscale, see docker-compose.override.yml.example.
     network_mode: "service:tailscale"
     env_file: .env                              # ANTHROPIC_API_KEY, SMB_NAS_*, etc.
     volumes:
@@ -21,6 +22,8 @@ services:
     environment:
       - TS_AUTHKEY=${TS_AUTHKEY:-}              # generate at tailscale.com/admin/settings/keys
       - TS_STATE_DIR=/var/lib/tailscale
+      # TS_USERSPACE=false uses kernel WireGuard via /dev/net/tun (faster).
+      # Change to TS_USERSPACE=true if the host lacks /dev/net/tun (WSL2, some cloud VMs).
       - TS_USERSPACE=false
     cap_add:
       - NET_ADMIN

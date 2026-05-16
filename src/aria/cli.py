@@ -67,7 +67,13 @@ async def _run(args: argparse.Namespace) -> None:
     model = create_model(args.model or role.model)
 
     server_names = role.servers or list(config.mcp_servers)
-    servers = {n: config.mcp_servers[n] for n in server_names if n in config.mcp_servers}
+    servers = {}
+    for n in server_names:
+        if n in config.mcp_servers:
+            servers[n] = config.mcp_servers[n]
+        else:
+            print(f"Warning: server '{n}' referenced in role '{role_name}' not found in config", file=sys.stderr)
+
     if not servers:
         raise SystemExit(
             f"No MCP servers available for role '{role_name}'. "
@@ -84,7 +90,7 @@ async def _run(args: argparse.Namespace) -> None:
             else all_tools
         )
 
-        agent = await make_agent(model, tools)
+        agent = make_agent(model, tools)
 
         tag = f"[{role_name}]" + (" [readonly]" if role.readonly else "")
         print(f"Aria {tag}  (type 'exit' to quit)\n")
@@ -104,27 +110,31 @@ async def _run(args: argparse.Namespace) -> None:
             print()
             in_text = False
 
-            async for event in agent.astream_events(
-                {"messages": [HumanMessage(content=user_input)]},
-                config=_THREAD,
-                version="v2",
-            ):
-                kind = event["event"]
+            try:
+                async for event in agent.astream_events(
+                    {"messages": [HumanMessage(content=user_input)]},
+                    config=_THREAD,
+                    version="v2",
+                ):
+                    kind = event["event"]
 
-                if kind == "on_tool_start":
-                    tip = _fmt_input(event["data"].get("input") or {})
-                    name = event["name"]
-                    print(f"  [{name}  {tip}]".rstrip() if tip else f"  [{name}]", flush=True)
-                    in_text = False
+                    if kind == "on_tool_start":
+                        tip = _fmt_input(event["data"].get("input") or {})
+                        name = event["name"]
+                        print(f"  [{name}  {tip}]".rstrip() if tip else f"  [{name}]", flush=True)
+                        in_text = False
 
-                elif kind == "on_chat_model_stream":
-                    chunk = event["data"]["chunk"]
-                    text = chunk.content if isinstance(chunk.content, str) else ""
-                    if text:
-                        if not in_text:
-                            print()
-                            in_text = True
-                        print(text, end="", flush=True)
+                    elif kind == "on_chat_model_stream":
+                        chunk = event["data"]["chunk"]
+                        text = chunk.content if isinstance(chunk.content, str) else ""
+                        if text:
+                            if not in_text:
+                                print()
+                                in_text = True
+                            print(text, end="", flush=True)
+
+            except Exception as exc:
+                print(f"\n[Error: {exc}]", file=sys.stderr)
 
             print("\n")
 
