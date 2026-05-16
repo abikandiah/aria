@@ -4,19 +4,22 @@
       "command": "npx",
       "transport": "stdio",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas/finance"],
-      "env": {}
+      "env": {},
+      "write_tools": ["write_file", "edit_file", "create_directory", "move_file"]
     },
     "hr-files": {
       "command": "npx",
       "transport": "stdio",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas/hr"],
-      "env": {}
+      "env": {},
+      "write_tools": ["write_file", "edit_file", "create_directory", "move_file"]
     },
     "shared-files": {
       "command": "npx",
       "transport": "stdio",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas/shared"],
-      "env": {}
+      "env": {},
+      "write_tools": ["write_file", "edit_file", "create_directory", "move_file"]
     }
   },
   "roles": {
@@ -24,24 +27,28 @@
       "model": "claude-sonnet-4-6",
       "servers": ["finance-files"],
       "readonly": false,
+      "persona": "default",
       "description": "Full access to the Finance share"
     },
     "hr": {
       "model": "claude-sonnet-4-6",
       "servers": ["hr-files"],
       "readonly": false,
+      "persona": "default",
       "description": "Full access to the HR share"
     },
     "staff": {
       "model": "claude-haiku-4-5-20251001",
       "servers": ["shared-files"],
       "readonly": true,
+      "persona": "browse",
       "description": "Read-only access to the shared drive — cheaper model"
     },
     "default": {
       "model": "claude-sonnet-4-6",
       "servers": ["shared-files"],
       "readonly": false,
+      "persona": "default",
       "description": "Full access to the shared drive"
     }
   }

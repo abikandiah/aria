@@ -1,9 +1,12 @@
-"""Tests for credential resolver and agent construction."""
+"""Tests for credential resolver, persona loader, and agent construction."""
 from __future__ import annotations
+
+import tempfile
+from pathlib import Path
 
 import pytest
 
-from aria.agent import _resolve_env
+from aria.agent import _resolve_env, load_persona
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +78,44 @@ def test_invalid_value_type_raises():
 def test_invalid_value_list_raises():
     with pytest.raises(ValueError, match="Invalid credential value type"):
         _resolve_env({"X": ["a", "b"]})  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# load_persona
+# ---------------------------------------------------------------------------
+
+def test_load_persona_none_returns_default():
+    """load_persona(None) must return a non-empty string (the built-in default)."""
+    result = load_persona(None)
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_load_persona_builtin_name():
+    """Built-in persona names ('browse', 'analyst') resolve without a path."""
+    browse = load_persona("browse")
+    analyst = load_persona("analyst")
+    assert "read-only" in browse.lower()
+    assert "analyst" in analyst.lower()
+
+
+def test_load_persona_builtin_name_with_extension():
+    """'browse.md' should resolve the same as 'browse'."""
+    assert load_persona("browse.md") == load_persona("browse")
+
+
+def test_load_persona_file_path(tmp_path):
+    """A path to an existing file is read directly."""
+    persona_file = tmp_path / "custom.md"
+    persona_file.write_text("You are a custom assistant.")
+    result = load_persona(str(persona_file))
+    assert result == "You are a custom assistant."
+
+
+def test_load_persona_missing_raises():
+    """A path or name that can't be resolved raises FileNotFoundError."""
+    with pytest.raises(FileNotFoundError, match="Persona not found"):
+        load_persona("nonexistent_persona_xyz")
 
 
 # ---------------------------------------------------------------------------

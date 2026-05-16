@@ -12,12 +12,16 @@ Adding a new capability = adding an MCP server entry in `aria.config.json`. No c
 
 ```
 src/aria/
-  agent.py    — create_agent wrapper; accepts BaseChatModel + tool list
-  models.py   — create_model(name) factory; two-path provider detection
-  config.py   — load aria.config.json; McpServerConfig, Role, AriaConfig dataclasses + WRITE_TOOLS
-  cli.py      — argparse REPL; --role / --model flags, streaming, readonly filtering
-  serve.py    — FastAPI service; /health + /threads/{id}/invoke + /threads/{id}/stream
-  graph.py    — LangGraph Platform graph entrypoint (used by langgraph.json)
+  agent.py       — create_agent wrapper; accepts BaseChatModel + tool list; load_persona(); scoped MCP env
+  models.py      — create_model(name) factory; two-path provider detection
+  config.py      — load aria.config.json; McpServerConfig, Role, AriaConfig dataclasses; get_write_tools()
+  cli.py         — argparse REPL; --role / --model flags, streaming, readonly filtering; UUID thread isolation
+  serve.py       — FastAPI service; /health + /threads/{id}/invoke + /threads/{id}/stream
+  graph.py       — LangGraph Platform graph entrypoint (used by langgraph.json)
+  personas/
+    default.md   — default system prompt (general-purpose)
+    browse.md    — read-only browsing persona
+    analyst.md   — research and synthesis persona
 plans/
   architecture.md        — full design doc: model layer, MCP config format, roadmap
 docs/
@@ -101,9 +105,9 @@ The agent receives a `BaseChatModel` — it knows nothing about the underlying p
     }
   },
   "roles": {
-    "default": { "model": "claude-sonnet-4-6", "servers": ["smb-files"], "readonly": false },
-    "browse":  { "model": "claude-haiku-4-5-20251001", "servers": ["smb-files"], "readonly": true },
-    "local":   { "model": "claude-sonnet-4-6", "servers": ["local-files"], "readonly": false }
+    "default": { "model": "claude-sonnet-4-6", "servers": ["smb-files"], "readonly": false, "persona": "default" },
+    "browse":  { "model": "claude-haiku-4-5-20251001", "servers": ["smb-files"], "readonly": true, "persona": "browse" },
+    "local":   { "model": "claude-sonnet-4-6", "servers": ["local-files"], "readonly": false, "persona": "default" }
   }
 }
 ```
@@ -112,18 +116,22 @@ The agent receives a `BaseChatModel` — it knows nothing about the underlying p
 - `{ "from": "keychain", "service": "aria-nas", "key": "password" }` — resolved via `keyring`
 - `{ "from": "env", "var": "SMB_NAS_PASSWORD" }` — resolved from an env var at startup
 
-`readonly: true` removes write/delete/send tools from the pool **before the model sees them** — a code-level guardrail, not a prompt instruction. The write tool names are listed in `_WRITE_TOOLS` in `cli.py`; extend that set when adding new MCP servers with mutating tools.
+`readonly: true` removes write/delete/send tools from the pool **before the model sees them** — a code-level guardrail, not a prompt instruction. Write tool names are declared per-server via the `write_tools` array in each `mcpServers` block. Servers without a `write_tools` declaration fall back to `_BUILTIN_WRITE_TOOLS` in `config.py` for backward compatibility.
+
+**Persona (system prompt)** — each role has an optional `persona` field. Omitting it loads `src/aria/personas/default.md`. Built-in personas: `default`, `browse`, `analyst`. Custom personas can be any file path.
 
 ## Architecture Notes
 
-- **`agent.py`** is fully provider- and domain-agnostic. `make_agent(model, tools, checkpointer=None)` takes any `BaseChatModel` and any tool list. Defaults to `MemorySaver`; pass `AsyncSqliteSaver` for persistent sessions.
-- **`make_mcp_client`** merges `os.environ` with per-server env overrides so MCP subprocesses inherit the parent environment. Credential references are resolved via `_resolve_env()`.
-- **`WRITE_TOOLS`** is defined in `config.py` — extend it there when adding new MCP servers with mutating tools. Both CLI and serve mode import it from there.
+- **`agent.py`** is fully provider- and domain-agnostic. `make_agent(model, tools, checkpointer=None, system_prompt=None)` takes any `BaseChatModel` and any tool list. Defaults to `MemorySaver`; pass `AsyncSqliteSaver` for persistent sessions. `system_prompt=None` falls back to `load_persona(None)` (the built-in default persona).
+- **`make_mcp_client`** gives each MCP subprocess only the env vars it declares plus a minimal passthrough set (`PATH`, `HOME`, `NODE_PATH`, etc.). Full parent environment is **not** inherited — this prevents credential leakage across server trust boundaries. Credential references are resolved via `_resolve_env()`.
+- **`get_write_tools(servers)`** in `config.py` derives the write-tool set from per-server `write_tools` declarations. Servers that declare an explicit list use only that list; servers without a declaration fall back to `_BUILTIN_WRITE_TOOLS`. Add `write_tools` to a server's config block when adding new MCP servers with mutating tools.
+- **`load_persona(path)`** in `agent.py` resolves a persona name or file path to a system prompt string. Built-in personas live in `src/aria/personas/`. A `None` path returns the default persona.
+- **CLI session isolation** — each `aria` invocation gets a fresh UUID thread ID. Concurrent CLI sessions do not share conversation state.
 - **Streaming** uses `astream_events(version="v2")`. CLI surfaces `on_tool_start` and `on_chat_model_stream`; serve mode forwards these as SSE events.
 - **`init_chat_model`** lives in `langchain` (not `langchain_core`). The `langchain>=0.3.0` dependency is required for the direct-provider path.
 - **`create_agent`** from `langchain.agents` is the current import (replaces the deprecated `langgraph.prebuilt.create_react_agent`). The call site uses `system_prompt=` (not `prompt=`).
 - **Serve mode** (`serve.py`) uses FastAPI with async lifespan to hold the MCP client and SQLite checkpointer open for the life of the process. `ARIA_ROLE` and `ARIA_DB_PATH` env vars control runtime behaviour.
-- **`graph.py`** exposes the agent for LangGraph Platform (`langgraph.json`). It uses `asyncio.run()` at import time — only works in a fresh event loop (standard for `langgraph serve` startup).
+- **`graph.py`** exposes the agent for LangGraph Platform (`langgraph.json`). Import-time async initialisation uses an explicit `asyncio.new_event_loop()` when no loop is running, and a thread-pool executor when one is already running (e.g. Jupyter).
 
 ## Phased Roadmap
 

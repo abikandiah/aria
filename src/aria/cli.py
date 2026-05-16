@@ -5,15 +5,14 @@ import argparse
 import asyncio
 import json
 import sys
+import uuid
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 
-from .agent import make_agent, make_mcp_client
-from .config import load_config, WRITE_TOOLS
+from .agent import load_persona, make_agent, make_mcp_client
+from .config import get_write_tools, load_config
 from .models import create_model
-
-_THREAD = {"configurable": {"thread_id": "session"}}
 
 
 def _parse_args() -> argparse.Namespace:
@@ -80,17 +79,20 @@ async def _run(args: argparse.Namespace) -> None:
             "Check aria.config.json."
         )
 
+    write_tools = get_write_tools(servers)
+    system_prompt = load_persona(role.persona)
     client = make_mcp_client(servers)
+    thread_config = {"configurable": {"thread_id": str(uuid.uuid4())}}
 
     async with client:
         all_tools = await client.get_tools()
         tools = (
-            [t for t in all_tools if t.name not in WRITE_TOOLS]
+            [t for t in all_tools if t.name not in write_tools]
             if role.readonly
             else all_tools
         )
 
-        agent = make_agent(model, tools)
+        agent = make_agent(model, tools, system_prompt=system_prompt)
 
         tag = f"[{role_name}]" + (" [readonly]" if role.readonly else "")
         print(f"Aria {tag}  (type 'exit' to quit)\n")
@@ -113,7 +115,7 @@ async def _run(args: argparse.Namespace) -> None:
             try:
                 async for event in agent.astream_events(
                     {"messages": [HumanMessage(content=user_input)]},
-                    config=_THREAD,
+                    config=thread_config,
                     version="v2",
                 ):
                     kind = event["event"]

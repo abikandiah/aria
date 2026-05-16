@@ -7,13 +7,15 @@
         "SMB_NAS_HOST": "samba-nas",
         "SMB_NAS_USERNAME": "myuser",
         "SMB_NAS_PASSWORD": { "from": "keychain", "service": "aria-nas", "key": "password" }
-      }
+      },
+      "write_tools": ["smb_write_file", "smb_delete", "smb_move", "smb_copy", "smb_mkdir"]
     },
     "local-files": {
       "command": "npx",
       "transport": "stdio",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/mnt/nas"],
-      "env": {}
+      "env": {},
+      "write_tools": ["write_file", "edit_file", "create_directory", "move_file"]
     }
   },
   "roles": {
@@ -21,18 +23,21 @@
       "model": "claude-sonnet-4-6",
       "servers": ["smb-files"],
       "readonly": false,
+      "persona": "default",
       "description": "Full access to file shares via SMB"
     },
     "browse": {
       "model": "claude-haiku-4-5-20251001",
       "servers": ["smb-files"],
       "readonly": true,
+      "persona": "browse",
       "description": "Fast read-only browsing — cheaper model, no write tools"
     },
     "local": {
       "model": "claude-sonnet-4-6",
       "servers": ["local-files"],
       "readonly": false,
+      "persona": "default",
       "description": "Access to OS-mounted shares (domain-joined server)"
     }
   }

@@ -18,6 +18,7 @@ class McpServerConfig:
     transport: str = "stdio"
     args: list[str] = field(default_factory=list)
     env: dict[str, str | dict] = field(default_factory=dict)
+    write_tools: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -27,6 +28,7 @@ class Role:
     servers: list[str] = field(default_factory=list)
     readonly: bool = False
     description: str = ""
+    persona: str | None = None
 
 
 @dataclass
@@ -35,9 +37,10 @@ class AriaConfig:
     roles: dict[str, Role]
 
 
-# Tool names that mutate state; stripped from the pool when readonly=True.
-# Extend this set when adding new MCP servers with write/send tools.
-WRITE_TOOLS: frozenset[str] = frozenset({
+# Fallback write-tool names for servers that do not declare write_tools in
+# their config block. Servers that do declare write_tools bypass this list
+# entirely. Prefer explicit per-server declarations for new configs.
+_BUILTIN_WRITE_TOOLS: frozenset[str] = frozenset({
     # smb-mcp
     "smb_write_file", "smb_delete", "smb_move", "smb_copy", "smb_mkdir",
     # mcp-server-filesystem
@@ -45,6 +48,19 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     # messaging / email
     "send_email", "send_message", "send_whatsapp",
 })
+
+
+def get_write_tools(servers: dict[str, McpServerConfig]) -> frozenset[str]:
+    """Return the union of write-tool names across all given servers.
+
+    Servers that declare write_tools use that list exclusively.
+    Servers without a declaration fall back to _BUILTIN_WRITE_TOOLS,
+    preserving backward compatibility while configs migrate to explicit lists.
+    """
+    result: set[str] = set()
+    for cfg in servers.values():
+        result.update(cfg.write_tools if cfg.write_tools else _BUILTIN_WRITE_TOOLS)
+    return frozenset(result)
 
 
 def load_config(path: str | None = None) -> AriaConfig:
@@ -61,6 +77,7 @@ def load_config(path: str | None = None) -> AriaConfig:
             transport=cfg.get("transport", "stdio"),
             args=cfg.get("args", []),
             env=cfg.get("env", {}),
+            write_tools=cfg.get("write_tools", []),
         )
         for name, cfg in raw.get("mcpServers", {}).items()
     }
@@ -74,6 +91,7 @@ def load_config(path: str | None = None) -> AriaConfig:
             servers=p.get("servers", list(servers)),
             readonly=p.get("readonly", False),
             description=p.get("description", ""),
+            persona=p.get("persona"),
         )
         for name, p in roles_raw.items()
     }

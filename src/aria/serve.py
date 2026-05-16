@@ -21,8 +21,8 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from .agent import make_agent, make_mcp_client
-from .config import WRITE_TOOLS, load_config
+from .agent import load_persona, make_agent, make_mcp_client
+from .config import get_write_tools, load_config
 from .models import create_model
 
 _THREAD_ID_RE = re.compile(r"^[\w\-]{1,128}$")
@@ -65,17 +65,20 @@ async def lifespan(app: FastAPI):
 
     db_path = os.getenv("ARIA_DB_PATH", "aria.db")
 
+    system_prompt = load_persona(role.persona)
+    write_tools = get_write_tools(servers)
+
     client = make_mcp_client(servers)
     async with client:
         all_tools = await client.get_tools()
         tools = (
-            [t for t in all_tools if t.name not in WRITE_TOOLS]
+            [t for t in all_tools if t.name not in write_tools]
             if role.readonly
             else all_tools
         )
 
         async with AsyncSqliteSaver.from_conn_string(db_path) as checkpointer:
-            app.state.agent = make_agent(model, tools, checkpointer=checkpointer)
+            app.state.agent = make_agent(model, tools, checkpointer=checkpointer, system_prompt=system_prompt)
             app.state.ready = True
             try:
                 yield
