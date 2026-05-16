@@ -6,9 +6,9 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
+from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.prebuilt import create_react_agent
 
 from .config import McpServerConfig
 
@@ -92,9 +92,9 @@ def make_agent(
     checkpointer: Any = None,  # BaseCheckpointSaver | AsyncBaseCheckpointSaver
 ) -> Any:
     """Create a ReAct agent. Defaults to in-memory checkpointing when none is given."""
-    return create_react_agent(
+    return create_agent(
         model,
         tools,
-        prompt=SYSTEM_PROMPT,
+        system_prompt=SYSTEM_PROMPT,
         checkpointer=checkpointer if checkpointer is not None else MemorySaver(),
     )

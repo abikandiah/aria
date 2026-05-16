@@ -12,7 +12,7 @@ Adding a new capability = adding an MCP server entry in `aria.config.json`. No c
 
 ```
 src/aria/
-  agent.py    — create_react_agent wrapper; accepts BaseChatModel + tool list
+  agent.py    — create_agent wrapper; accepts BaseChatModel + tool list
   models.py   — create_model(name) factory; two-path provider detection
   config.py   — load aria.config.json; McpServerConfig, Role, AriaConfig dataclasses + WRITE_TOOLS
   cli.py      — argparse REPL; --role / --model flags, streaming, readonly filtering
@@ -121,7 +121,7 @@ The agent receives a `BaseChatModel` — it knows nothing about the underlying p
 - **`WRITE_TOOLS`** is defined in `config.py` — extend it there when adding new MCP servers with mutating tools. Both CLI and serve mode import it from there.
 - **Streaming** uses `astream_events(version="v2")`. CLI surfaces `on_tool_start` and `on_chat_model_stream`; serve mode forwards these as SSE events.
 - **`init_chat_model`** lives in `langchain` (not `langchain_core`). The `langchain>=0.3.0` dependency is required for the direct-provider path.
-- **`create_react_agent`** from `langgraph.prebuilt` is the correct import for LangGraph v1.x. LangGraph emits a deprecation warning that it will move in v2.0 — this is expected and harmless until we upgrade to v2.
+- **`create_agent`** from `langchain.agents` is the current import (replaces the deprecated `langgraph.prebuilt.create_react_agent`). The call site uses `system_prompt=` (not `prompt=`).
 - **Serve mode** (`serve.py`) uses FastAPI with async lifespan to hold the MCP client and SQLite checkpointer open for the life of the process. `ARIA_ROLE` and `ARIA_DB_PATH` env vars control runtime behaviour.
 - **`graph.py`** exposes the agent for LangGraph Platform (`langgraph.json`). It uses `asyncio.run()` at import time — only works in a fresh event loop (standard for `langgraph serve` startup).
 

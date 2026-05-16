@@ -49,9 +49,9 @@ async def _build():
 
     model = create_model(os.getenv("ARIA_MODEL") or role.model)
 
-    from langgraph.prebuilt import create_react_agent
+    from langchain.agents import create_agent
     # LangGraph Platform injects its own checkpointer; we pass none here.
-    return create_react_agent(model, tools, prompt=SYSTEM_PROMPT)
+    return create_agent(model, tools, system_prompt=SYSTEM_PROMPT)
 
 
 def _run_async(coro):
