@@ -148,8 +148,110 @@ will be the same: an MCP server block with an explicit `write_tools` list.
 
 ---
 
+## Messaging — Twilio (SMS and WhatsApp)
+
+**Package:** `@twilio-labs/mcp` (official Twilio Labs MCP)  
+**Capabilities:** Send SMS, send WhatsApp messages (via Twilio's WhatsApp Business API),
+manage Twilio resources  
+**Write tools:** `create_message` (the primary mutating tool for sending SMS/WhatsApp)
+
+**Setup:**
+
+1. Sign up at [twilio.com](https://www.twilio.com/) — free trial includes credits
+2. From the [Twilio Console](https://console.twilio.com/) → **Account Info**, copy:
+   - **Account SID** (`ACxxxxxxxx...`)
+   - **Auth Token**
+3. For WhatsApp: enable the WhatsApp sandbox or apply for a WhatsApp Business number
+   in the Twilio Console
+
+```
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your-auth-token
+```
+
+Config block (already in the example configs):
+
+```json
+"messaging-twilio": {
+  "command": "npx",
+  "transport": "stdio",
+  "args": ["-y", "@twilio-labs/mcp"],
+  "env": {
+    "TWILIO_ACCOUNT_SID": { "from": "env", "var": "TWILIO_ACCOUNT_SID" },
+    "TWILIO_AUTH_TOKEN":  { "from": "env", "var": "TWILIO_AUTH_TOKEN" }
+  },
+  "write_tools": ["create_message"]
+}
+```
+
+> **Verifying tool names:** `@twilio-labs/mcp` exposes tools derived from the Twilio
+> REST API. Run `aria` once with the Twilio server connected and note what tools
+> appear in the session. If the actual send tool has a different name, update
+> `write_tools` in your config block to match, so readonly roles are filtered correctly.
+
+---
+
+## Remote MCP over HTTP/SSE
+
+Instead of running an MCP server as a local subprocess inside the Aria container,
+you can run it as a network service on the business's own LAN (secured via Tailscale)
+and have cloud Aria connect to it over HTTP.
+
+**Why this matters:**
+- NAS credentials never leave the business's network — auth stays on-prem
+- The Aria container needs no SMB credentials at all
+- One MCP server instance can serve multiple Aria containers
+- Works with any MCP server that supports streamable HTTP or SSE transport
+
+**Architecture:**
+
+```
+Cloud (Docker)                    Business LAN (Tailscale)
+┌──────────────────┐              ┌──────────────────────────┐
+│  Aria container  │◄─ HTTP/SSE ──│  mcp-server-filesystem   │
+│  (no NAS creds)  │   Tailscale  │  (direct NAS access,     │
+└──────────────────┘              │   Kerberos/OS auth)       │
+                                  └──────────────────────────┘
+```
+
+**Config block** (use your Tailscale hostname or IP):
+
+```json
+"nas-remote": {
+  "transport": "streamable_http",
+  "url": "https://nas.tail12345.ts.net:8080/mcp",
+  "write_tools": ["write_file", "edit_file", "create_directory", "move_file", "delete_file"]
+}
+```
+
+No `command`, `args`, or `env` — this is a network connection, not a subprocess.
+
+**Running the remote MCP server on-prem:**
+
+Any MCP server that supports HTTP transport can be used. For `mcp-server-filesystem`:
+
+```bash
+# On the domain-joined server (NAS already mounted at /mnt/nas)
+npx @modelcontextprotocol/server-filesystem /mnt/nas --transport streamable-http --port 8080
+```
+
+Lock it down with Tailscale ACLs so only your cloud Aria node can reach port 8080.
+Do not expose it to the public internet.
+
+> HTTP/SSE transport is supported in Aria — use `"transport": "streamable_http"` or
+> `"sse"` with a `"url"` field in your server block. The on-prem server setup is
+> manual for now; systemd unit files are planned.
+
+---
+
 ## Adding more MCP servers
 
 Any MCP server follows the same pattern. Add a block to `aria.config.json`, add
 it to the `servers` list of whichever roles should have access, and declare
 `write_tools` explicitly so readonly role filtering works correctly.
+
+For **stdio servers**: set `command`, `args`, and `env`. The subprocess only
+receives the env vars you declare — credentials are isolated by default.
+
+For **HTTP/SSE servers**: set `transport` to `"streamable_http"` or `"sse"` and
+set `url`. No `command` or `env` needed — Aria connects over the network.

@@ -43,6 +43,16 @@
         "GMAIL_CREDENTIALS_PATH": { "from": "env", "var": "GMAIL_CREDENTIALS_PATH" }
       },
       "write_tools": ["send_email", "create_draft", "reply_to_email", "forward_email", "delete_email", "trash_email", "modify_labels"]
+    },
+    "messaging-twilio": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@twilio-labs/mcp"],
+      "env": {
+        "TWILIO_ACCOUNT_SID": { "from": "env", "var": "TWILIO_ACCOUNT_SID" },
+        "TWILIO_AUTH_TOKEN": { "from": "env", "var": "TWILIO_AUTH_TOKEN" }
+      },
+      "write_tools": ["create_message"]
     }
   },
   "roles": {

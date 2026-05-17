@@ -176,10 +176,12 @@ streaming, readonly tool filtering.
 - [x] Email: `@gongrzhe/server-gmail-autoauth-mcp` — added to cloud + base config
       examples; write_tools declared per-server; `_BUILTIN_WRITE_TOOLS` expanded
 - [x] `docs/capabilities.md`: setup guides for Brave Search and Gmail
-- [ ] Messaging: evaluate Twilio / WhatsApp Cloud API MCPs
-- [ ] Remote MCP over HTTP/SSE: evaluate running `smb-mcp` or `mcp-server-filesystem`
-      as a network-accessible service on the business's LAN (Tailscale-secured),
-      connected to by cloud Aria over HTTP transport
+- [x] Messaging: `@twilio-labs/mcp` chosen — SMS + WhatsApp Business via Twilio;
+      added to all config examples; `write_tools: ["create_message"]`;
+      setup guide in `docs/capabilities.md`
+- [x] Remote MCP over HTTP/SSE: implemented — `McpServerConfig` gains `url` field;
+      `make_mcp_client` branches on transport (stdio vs HTTP); example block in
+      `aria.config.example.cloud.json`; setup guide in `docs/capabilities.md`
 
 ---
 

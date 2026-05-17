@@ -38,6 +38,16 @@
         "TAVILY_API_KEY": { "from": "env", "var": "TAVILY_API_KEY" }
       },
       "write_tools": []
+    },
+    "messaging-twilio": {
+      "command": "npx",
+      "transport": "stdio",
+      "args": ["-y", "@twilio-labs/mcp"],
+      "env": {
+        "TWILIO_ACCOUNT_SID": { "from": "env", "var": "TWILIO_ACCOUNT_SID" },
+        "TWILIO_AUTH_TOKEN": { "from": "env", "var": "TWILIO_AUTH_TOKEN" }
+      },
+      "write_tools": ["create_message"]
     }
   },
   "roles": {

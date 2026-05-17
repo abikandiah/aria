@@ -99,21 +99,34 @@ def _resolve_env(env: dict[str, str | dict]) -> dict[str, str]:
     return resolved
 
 
+def _server_client_config(cfg: McpServerConfig, base_env: dict[str, str]) -> dict:
+    """Build the per-server dict that MultiServerMCPClient expects.
+
+    HTTP/SSE servers (url set): no subprocess, no env isolation.
+    stdio servers: scoped subprocess env — only declared vars + passthrough set.
+    """
+    if cfg.url:
+        return {"url": cfg.url, "transport": cfg.transport}
+    return {
+        "command": cfg.command,
+        "transport": cfg.transport,
+        "args": cfg.args,
+        "env": {**base_env, **_resolve_env(cfg.env)},
+    }
+
+
 def make_mcp_client(servers: dict[str, McpServerConfig]) -> MultiServerMCPClient:
     """Build an MCP client from a dict of McpServerConfig objects.
 
-    Each subprocess receives only the env vars it declares plus a minimal
-    passthrough set. Full parent environment is not inherited to prevent
-    credential leakage across server trust boundaries.
+    stdio servers: each subprocess receives only the env vars it declares plus
+    a minimal passthrough set — full parent environment is not inherited to
+    prevent credential leakage across server trust boundaries.
+
+    HTTP/SSE servers: connected over the network; env isolation does not apply.
     """
     base_env = {k: v for k, v in os.environ.items() if k in _SUBPROCESS_ENV_PASSTHROUGH}
     return MultiServerMCPClient({
-        name: {
-            "command": cfg.command,
-            "transport": cfg.transport,
-            "args": cfg.args,
-            "env": {**base_env, **_resolve_env(cfg.env)},
-        }
+        name: _server_client_config(cfg, base_env)
         for name, cfg in servers.items()
     })
 

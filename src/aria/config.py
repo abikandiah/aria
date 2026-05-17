@@ -14,8 +14,9 @@ from pathlib import Path
 
 @dataclass
 class McpServerConfig:
-    command: str
-    transport: str = "stdio"
+    command: str = ""          # required for stdio transport; omit for http/sse
+    transport: str = "stdio"   # "stdio" | "sse" | "streamable_http"
+    url: str | None = None     # required for sse/streamable_http transport
     args: list[str] = field(default_factory=list)
     env: dict[str, str | dict] = field(default_factory=dict)
     write_tools: list[str] = field(default_factory=list)
@@ -79,8 +80,9 @@ def load_config(path: str | None = None) -> AriaConfig:
 
     servers: dict[str, McpServerConfig] = {
         name: McpServerConfig(
-            command=cfg["command"],
+            command=cfg.get("command", ""),
             transport=cfg.get("transport", "stdio"),
+            url=cfg.get("url"),
             args=cfg.get("args", []),
             env=cfg.get("env", {}),
             write_tools=cfg.get("write_tools", []),
