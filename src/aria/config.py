@@ -72,7 +72,10 @@ def load_config(path: str | None = None) -> AriaConfig:
     if not config_path.exists():
         return AriaConfig(mcp_servers={}, roles={"default": Role(name="default")})
 
-    raw = json.loads(config_path.read_text())
+    try:
+        raw = json.loads(config_path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in {config_path}: {exc}") from exc
 
     servers: dict[str, McpServerConfig] = {
         name: McpServerConfig(

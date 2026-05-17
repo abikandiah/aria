@@ -1,14 +1,15 @@
-"""LangGraph Platform graph entrypoint.
+"""LangGraph Platform graph entrypoint — for `langgraph dev` / Studio ONLY.
 
-This module exposes `graph` as a compiled LangGraph graph for use with
-`langgraph serve` / LangGraph Platform (see langgraph.json).
+This module is NOT suitable for production serving. It is wired into
+langgraph.json for use with `langgraph dev` (the local dev UI / graph
+visualiser). For production cloud deployments use serve.py instead, which
+provides proper async lifespan management, SQLite persistence, SSE
+streaming, and a concurrency cap.
 
-The MCP client is initialised at import time. It intentionally stays open
-for the lifetime of the process — LangGraph Platform manages restarts and
-there is no shutdown hook needed.
-
-For self-hosted cloud deployments, prefer serve.py (FastAPI + uvicorn),
-which gives proper async lifespan management and SSE streaming.
+The MCP client is intentionally left open (no __aexit__) for the lifetime
+of the process. LangGraph Platform manages restarts; there is no shutdown
+hook available at this entry point. Zombie subprocesses from a crash will
+be cleaned up on the next process start.
 """
 from __future__ import annotations
 

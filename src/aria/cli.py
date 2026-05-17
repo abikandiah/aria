@@ -46,7 +46,7 @@ def _fmt_input(data: dict) -> str:
     return "  ".join(
         f"{k}={json.dumps(v)}"
         for k, v in data.items()
-        if v not in ("", None, False, 0)
+        if v not in ("", None)
     )
 
 
@@ -66,16 +66,17 @@ async def _run(args: argparse.Namespace) -> None:
     model = create_model(args.model or role.model)
 
     server_names = role.servers or list(config.mcp_servers)
-    servers = {}
-    for n in server_names:
-        if n in config.mcp_servers:
-            servers[n] = config.mcp_servers[n]
-        else:
-            print(f"Warning: server '{n}' referenced in role '{role_name}' not found in config", file=sys.stderr)
+    missing = [n for n in server_names if n not in config.mcp_servers]
+    if missing:
+        raise SystemExit(
+            f"Role '{role_name}' references unknown servers: {missing}. "
+            "Check aria.config.json."
+        )
+    servers = {n: config.mcp_servers[n] for n in server_names}
 
     if not servers:
         raise SystemExit(
-            f"No MCP servers available for role '{role_name}'. "
+            f"No MCP servers configured for role '{role_name}'. "
             "Check aria.config.json."
         )
 

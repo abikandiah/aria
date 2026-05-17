@@ -9,6 +9,7 @@ Environment variables (on top of the standard Aria ones):
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -53,11 +54,13 @@ async def lifespan(app: FastAPI):
 
     model = create_model(os.getenv("ARIA_MODEL") or role.model)
     server_names = role.servers or list(config.mcp_servers)
-    servers = {n: config.mcp_servers[n] for n in server_names if n in config.mcp_servers}
     missing = [n for n in server_names if n not in config.mcp_servers]
     if missing:
-        import warnings
-        warnings.warn(f"Servers referenced in role '{role_name}' not found: {missing}")
+        raise RuntimeError(
+            f"Role '{role_name}' references unknown servers: {missing}. "
+            "Check aria.config.json."
+        )
+    servers = {n: config.mcp_servers[n] for n in server_names}
     if not servers:
         raise RuntimeError(
             f"No MCP servers configured for role '{role_name}'. Check aria.config.json."
@@ -79,6 +82,8 @@ async def lifespan(app: FastAPI):
 
         async with AsyncSqliteSaver.from_conn_string(db_path) as checkpointer:
             app.state.agent = make_agent(model, tools, checkpointer=checkpointer, system_prompt=system_prompt)
+            max_concurrent = int(os.getenv("ARIA_MAX_CONCURRENT_REQUESTS", "10"))
+            app.state.semaphore = asyncio.Semaphore(max_concurrent)
             app.state.ready = True
             try:
                 yield
@@ -122,39 +127,46 @@ async def invoke(thread_id: str, req: ChatRequest, request: Request):
     if agent is None:
         raise HTTPException(503, "Agent not ready")
 
-    result = await agent.ainvoke(
-        {"messages": [HumanMessage(content=req.message)]},
-        config=_thread_config(thread_id),
-    )
+    semaphore: asyncio.Semaphore = request.app.state.semaphore
+    if not semaphore._value:  # noqa: SLF001
+        raise HTTPException(429, "Too many concurrent requests")
+    async with semaphore:
+        result = await agent.ainvoke(
+            {"messages": [HumanMessage(content=req.message)]},
+            config=_thread_config(thread_id),
+        )
     messages = result.get("messages", [])
     if not messages:
         raise HTTPException(500, "Agent returned no messages")
     return {"thread_id": thread_id, "response": messages[-1].content}
 
 
-async def _event_stream(agent, thread_id: str, message: str) -> AsyncIterator[str]:
-    try:
-        async for event in agent.astream_events(
-            {"messages": [HumanMessage(content=message)]},
-            config=_thread_config(thread_id),
-            version="v2",
-        ):
-            kind = event["event"]
-            if kind == "on_chat_model_stream":
-                chunk = event["data"]["chunk"]
-                text = chunk.content if isinstance(chunk.content, str) else ""
-                if text:
-                    yield f"data: {json.dumps({'type': 'text', 'content': text})}\n\n"
-            elif kind == "on_tool_start":
-                payload = {"type": "tool_start", "name": event["name"]}
-                yield f"data: {json.dumps(payload)}\n\n"
-            elif kind == "on_tool_end":
-                payload = {"type": "tool_end", "name": event["name"]}
-                yield f"data: {json.dumps(payload)}\n\n"
-    except Exception as exc:
-        yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
-    finally:
-        yield "data: [DONE]\n\n"
+async def _event_stream(
+    agent, thread_id: str, message: str, semaphore: asyncio.Semaphore
+) -> AsyncIterator[str]:
+    async with semaphore:
+        try:
+            async for event in agent.astream_events(
+                {"messages": [HumanMessage(content=message)]},
+                config=_thread_config(thread_id),
+                version="v2",
+            ):
+                kind = event["event"]
+                if kind == "on_chat_model_stream":
+                    chunk = event["data"]["chunk"]
+                    text = chunk.content if isinstance(chunk.content, str) else ""
+                    if text:
+                        yield f"data: {json.dumps({'type': 'text', 'content': text})}\n\n"
+                elif kind == "on_tool_start":
+                    payload = {"type": "tool_start", "name": event["name"]}
+                    yield f"data: {json.dumps(payload)}\n\n"
+                elif kind == "on_tool_end":
+                    payload = {"type": "tool_end", "name": event["name"]}
+                    yield f"data: {json.dumps(payload)}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        finally:
+            yield "data: [DONE]\n\n"
 
 
 @app.post("/threads/{thread_id}/stream")
@@ -173,8 +185,12 @@ async def stream(thread_id: str, req: ChatRequest, request: Request):
     if agent is None:
         raise HTTPException(503, "Agent not ready")
 
+    semaphore: asyncio.Semaphore = request.app.state.semaphore
+    if not semaphore._value:  # noqa: SLF001
+        raise HTTPException(429, "Too many concurrent requests")
+
     return StreamingResponse(
-        _event_stream(agent, thread_id, req.message),
+        _event_stream(agent, thread_id, req.message, semaphore),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
